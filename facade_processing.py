@@ -5,8 +5,7 @@ import cv2
 
 class FacadeProcessor:
     def __init__(self, scanned_data_path, banner_placer):
-        pcd, _ = self.load_points_data(scanned_data_path).remove_statistical_outlier(nb_neighbors=20, std_ratio=2.0)
-        self.point_cloud = pcd.voxel_down_sample(voxel_size=0.04)  # uniformly downsampled point cloud
+        self.point_cloud = self.load_points_data(scanned_data_path).voxel_down_sample(voxel_size=0.04)  # uniformly downsampled point cloud
         self.banner_placer = banner_placer
         self.right_facade = None
         self.cropped_image = None
@@ -22,6 +21,7 @@ class FacadeProcessor:
         Filters outliers using remove_statistical_outlier.
         :return: right_facade_pcd: pointCloud object of the right facade
         """
+        # m: number of points required to estimate a model, c: confidence score, p: probability to internal
         m, c, p = 3, 0.99, 0.6
         t = int(np.log(1 - c) / np.log(1 - (1 - p) ** m))
         # Apply RANSAC to detect the planes
@@ -37,7 +37,7 @@ class FacadeProcessor:
             for plane_pcd in [inlier_cloud, remaining_cloud]]
         right_facade_pcd = [inlier_cloud, remaining_cloud][np.argmin(distances)]
         # remove outliers
-        right_facade_pcd_, ind = right_facade_pcd.remove_statistical_outlier(nb_neighbors=50, std_ratio=1.0)
+        right_facade_pcd_, ind = right_facade_pcd.remove_statistical_outlier(nb_neighbors=100, std_ratio=1.0)
         # display_inlier_outlier(right_facade_pcd, ind)
         self.right_facade = right_facade_pcd_
 
