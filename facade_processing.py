@@ -3,28 +3,10 @@ import numpy as np
 import itertools
 import cv2
 
-
-def load_points_data(points_path: str):
-    """
-    Opens the scan 3d points and creates PointCloud object.
-    :param points_path: path to 3d_scan text file.
-    :return: PointCloud object with the given scan points
-    """
-    data = np.loadtxt(points_path, delimiter=',')
-    points = data[:, :3]
-    colors = data[:, 3:6] / 255.0  # Normalize RGB values to [0, 1] range (for o3d.visualization)
-    normals = data[:, 6:9]
-    # Creates an Open3D PointCloud object and initializes it with the given data
-    pcd = o3d.geometry.PointCloud()
-    pcd.points = o3d.utility.Vector3dVector(points)
-    pcd.colors = o3d.utility.Vector3dVector(colors)
-    pcd.normals = o3d.utility.Vector3dVector(normals)
-    return pcd
-
-
 class FacadeProcessor:
     def __init__(self, scanned_data_path, banner_placer):
-        self.point_cloud = load_points_data(scanned_data_path).voxel_down_sample(voxel_size=0.04)
+        pcd, _ = self.load_points_data(scanned_data_path).remove_statistical_outlier(nb_neighbors=20, std_ratio=2.0)
+        self.point_cloud = pcd.voxel_down_sample(voxel_size=0.04)  # uniformly downsampled point cloud
         self.banner_placer = banner_placer
         self.right_facade = None
         self.cropped_image = None
@@ -55,14 +37,13 @@ class FacadeProcessor:
             for plane_pcd in [inlier_cloud, remaining_cloud]]
         right_facade_pcd = [inlier_cloud, remaining_cloud][np.argmin(distances)]
         # remove outliers
-        right_facade_pcd_, ind = right_facade_pcd.remove_statistical_outlier(nb_neighbors=100, std_ratio=1.0)
+        right_facade_pcd_, ind = right_facade_pcd.remove_statistical_outlier(nb_neighbors=50, std_ratio=1.0)
         # display_inlier_outlier(right_facade_pcd, ind)
         self.right_facade = right_facade_pcd_
 
     def compute_and_crop_right_facade_bb(self):
         """
         Computes the bounding box of the right facade in 3d world and than project it into the 2d world using camera matrix
-
         """
         camera_matrix = self.banner_placer.camera_matrix
         # Define the 8 corners (3D bounding box) of the right facade bounding box
@@ -84,3 +65,21 @@ class FacadeProcessor:
     def display_result(self):
         cv2.imshow("Cropped Image", self.cropped_image)
         cv2.waitKey(0)
+
+    @staticmethod
+    def load_points_data(points_path: str):
+        """
+        Opens the scan 3d points and creates PointCloud object.
+        :param points_path: path to 3d_scan text file.
+        :return: PointCloud object with the given scan points
+        """
+        data = np.loadtxt(points_path, delimiter=',')
+        points = data[:, :3]
+        colors = data[:, 3:6] / 255.0  # Normalize RGB values to [0, 1] range (for o3d.visualization)
+        normals = data[:, 6:9]
+        # Creates an Open3D PointCloud object and initializes it with the given data
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(points)
+        pcd.colors = o3d.utility.Vector3dVector(colors)
+        pcd.normals = o3d.utility.Vector3dVector(normals)
+        return pcd

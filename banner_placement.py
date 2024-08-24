@@ -5,37 +5,6 @@ import numpy as np
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
 
-def sort_coordinates(coordinates):
-    """
-    Sorts the given coordinates into top_left, top_right, bottom_left, bottom_right
-    :param coordinates: tuple of coordinates
-    :return: tuple of sorted coordinates
-    """
-    coords = coordinates.copy()
-    # Identify the top-left, top-right, bottom-left, and bottom-right points
-    top_left = min(coords, key=lambda p: (p[0] + p[1]))
-    bottom_right = max(coords, key=lambda p: (p[0] + p[1]))
-    coords.remove(top_left)
-    coords.remove(bottom_right)
-    top_right = max(coords, key=lambda p: p[0])
-    bottom_left = min(coords, key=lambda p: p[0])
-    return top_left, top_right, bottom_left, bottom_right
-
-
-def parse_coordinates(text):
-    """
-    Splits the coordinates by using expression that find them in the text.
-    :param text: The output of the OCR
-    :return: tuple of sorted coordinates
-    """
-    # Regular expression to match coordinates
-    pattern = r'\((-?\d+\.\d+),\s*(-?\d+\.\d+),\s*(-?\d+\.\d+)\)'
-    matches = re.findall(pattern, text)
-    coordinates = [(float(x), float(y), float(z)) for x, y, z in matches]
-    assert len(coordinates) == 4, "OCR didn't work as accepted"
-    return sort_coordinates(coordinates)
-
-
 class BannerPlacer:
     def __init__(self, camera_matrix_path, banner_image_path, banner_coordinates_path, original_image_path):
         self.camera_matrix = np.loadtxt(camera_matrix_path)
@@ -50,7 +19,7 @@ class BannerPlacer:
 
     def extract_coordinates_from_image(self):
         text = pytesseract.image_to_string(self.banner_coordinates_image)
-        return parse_coordinates(text)
+        return self.parse_coordinates(text)
 
     def transform_and_place(self):
         """
@@ -93,3 +62,35 @@ class BannerPlacer:
 
     def get_result_image(self):
         return self.result_image
+
+    def parse_coordinates(self, text):
+        """
+        Splits the coordinates by using expression that find them in the text.
+        :param text: The output of the OCR
+        :return: tuple of sorted coordinates
+        """
+        # Regular expression to match coordinates
+        pattern = r'\((-?\d+\.\d+),\s*(-?\d+\.\d+),\s*(-?\d+\.\d+)\)'
+        matches = re.findall(pattern, text)
+        coordinates = [(float(x), float(y), float(z)) for x, y, z in matches]
+        assert len(coordinates) == 4, "OCR didn't work as accepted, didn't find in the text 4 coordinates"
+        return self.sort_coordinates(coordinates)
+
+    @staticmethod
+    def sort_coordinates(coordinates):
+        """
+        Sorts the given coordinates into top_left, top_right, bottom_left, bottom_right
+        :param coordinates: tuple of coordinates
+        :return: tuple of sorted coordinates
+        """
+        coords = coordinates.copy()
+        # Identify the top-left, top-right, bottom-left, and bottom-right points
+        top_left = min(coords, key=lambda p: (p[0] + p[1]))
+        bottom_right = max(coords, key=lambda p: (p[0] + p[1]))
+        coords.remove(top_left)
+        coords.remove(bottom_right)
+        top_right = max(coords, key=lambda p: p[0])
+        bottom_left = min(coords, key=lambda p: p[0])
+        return top_left, top_right, bottom_left, bottom_right
+
+
