@@ -25,11 +25,10 @@ class BannerPlacer:
         """
         transforming the banner image so it fit to the given coordinates using getPerspectiveTransform
         and place it in the correct place in the original image using a mask.
-        :returns
-        numpy array: The original image with the banner placed on it.
+        Stores the result in self.result_image
         """
-        # Gets banner's coordinates and transform it into 2D by the projMat
-        self.banner_3d_coordinates = self.extract_coordinates_from_image()
+        # Gets banner's coordinates and transform it into 2D by the camera_matrix
+        self.extract_coordinates_from_image()
         banner_coordinates_homogeneous = np.hstack((np.vstack(self.banner_3d_coordinates), np.ones((4, 1))))
         image_banner_coordinates_homogeneous = self.camera_matrix @ banner_coordinates_homogeneous.T
         banner_coordinates_2d = np.array((image_banner_coordinates_homogeneous[:2, :] /
@@ -66,15 +65,15 @@ class BannerPlacer:
     def parse_coordinates(self, text):
         """
         Splits the coordinates by using expression that find them in the text.
+        Stores the sorted coordinates in self.banner_3d_coordinates
         :param text: The output of the OCR
-        :return: tuple of sorted coordinates
         """
         # Regular expression to match coordinates
         pattern = r'\((-?\d+\.\d+),\s*(-?\d+\.\d+),\s*(-?\d+\.\d+)\)'
         matches = re.findall(pattern, text)
         coordinates = [(float(x), float(y), float(z)) for x, y, z in matches]
         assert len(coordinates) == 4, "OCR didn't work as accepted, didn't find in the text 4 coordinates"
-        return self.sort_coordinates(coordinates)
+        self.banner_3d_coordinates = self.sort_coordinates(coordinates)
 
     @staticmethod
     def sort_coordinates(coordinates):

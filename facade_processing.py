@@ -3,6 +3,7 @@ import numpy as np
 import itertools
 import cv2
 
+
 class FacadeProcessor:
     def __init__(self, scanned_data_path, banner_placer):
         self.point_cloud = self.load_points_data(scanned_data_path).voxel_down_sample(voxel_size=0.04)  # uniformly downsampled point cloud
@@ -19,7 +20,7 @@ class FacadeProcessor:
         Separates the points cloud into 2 planes using RANSAC.
         Chooses the relevant plane by using the banner coordinates (that are places in the right facade).
         Filters outliers using remove_statistical_outlier.
-        :return: right_facade_pcd: pointCloud object of the right facade
+        Stores the pointCloud object of the right facade in self.right_facade
         """
         # m: number of points required to estimate a model, c: confidence score, p: probability to internal
         m, c, p = 3, 0.99, 0.6
@@ -27,11 +28,11 @@ class FacadeProcessor:
         # Apply RANSAC to detect the planes
         _, inliers = self.point_cloud.segment_plane(distance_threshold=0.06, ransac_n=m, num_iterations=t)
 
-        # Extract inlier points corresponding to the plane
+        # Extract the 2 planes
         inlier_cloud = self.point_cloud.select_by_index(inliers)
         remaining_cloud = self.point_cloud.select_by_index(inliers, invert=True)
-        # Calculates the distance of each point (from banner coordinates) to the planner points and keep the planar with
-        # minimum distance (I know the banner is on the right facade)
+        # Calculates the distance of each point in banner coordinates to each cloud points and keep the plane with
+        # the minimum distance (because the banner is on the right facade).
         distances = [
             sum((np.linalg.norm(p - np.asarray(plane_pcd.points), axis=1).mean()) for p in self.banner_placer.get_3d_coordinates())
             for plane_pcd in [inlier_cloud, remaining_cloud]]
@@ -43,7 +44,8 @@ class FacadeProcessor:
 
     def compute_and_crop_right_facade_bb(self):
         """
-        Computes the bounding box of the right facade in 3d world and than project it into the 2d world using camera matrix
+        Computes the bounding box of the right facade in 3d world and than project it into the 2d
+        world using camera matrix. Stores the cropped image in self.cropped_image.
         """
         camera_matrix = self.banner_placer.camera_matrix
         # Define the 8 corners (3D bounding box) of the right facade bounding box
